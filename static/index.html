@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shree Aasha Silver Live Rates</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b1030">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shree Aasha">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-name">SHREE AASHA</div>
+      <div class="brand-tag">SILVER &amp; GOLD LIVE RATES</div>
+    </div>
+    <div class="status">
+      <span id="dot" class="dot"></span>
+      <span id="statusText">Connecting…</span>
+    </div>
+  </div>
+</header>
+
+<div class="marquee">
+  <div class="marquee-track">Welcome to Shree Aasha Silver Live Rates</div>
+</div>
+
+<div class="wrap">
+  <div id="banner" class="banner hidden"></div>
+
+  <div class="ticker-row two-col">
+    <section class="ticker">
+      <span class="ticker-label">IBJA GOLD 999 (per 10g)</span>
+      <span class="ticker-value" id="ibjaGold">--</span>
+    </section>
+    <section class="ticker">
+      <span class="ticker-label">IBJA SILVER 999 (per kg)</span>
+      <span class="ticker-value" id="ibjaSilver">--</span>
+    </section>
+  </div>
+  <div class="as-of" id="asOf">IBJA reference as of --</div>
+
+  <table class="rate-table">
+    <thead>
+      <tr><th>Product</th><th>RTGS Rate</th><th>Market Rate</th><th></th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Silver 999 <span class="unit-tag">per kg</span></td>
+        <td class="sell" id="silverRtgs">--</td>
+        <td class="sell market" id="silverMarket">--</td>
+        <td><span class="check">✓</span></td>
+      </tr>
+      <tr>
+        <td>Gold 999 <span class="unit-tag">per 10g</span></td>
+        <td class="sell" id="goldRtgs">--</td>
+        <td class="sell market" id="goldMarket">--</td>
+        <td><span class="check">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <footer>
+    <span id="updated">Last updated: --</span>
+  </footer>
+</div>
+
+<div class="marquee bottom">
+  <div class="marquee-track">Reference rate from IBJA (India Bullion &amp; Jewellers Association). RTGS/Market columns apply a calibrated dealer spread on top — for reference only, not an official dealer quote.</div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

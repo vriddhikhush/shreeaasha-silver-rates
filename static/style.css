@@ -1,0 +1,224 @@
+:root {
+  --navy: #0b1030;
+  --navy-2: #131a45;
+  --panel: #161d4a;
+  --border: #2a3268;
+  --text: #eef1f6;
+  --muted: #9aa3c7;
+  --silver: #c7ccd6;
+  --gold: #e8c46a;
+  --gold-strong: #f0c419;
+  --accent: #4f7cff;
+  --good: #3ecf8e;
+  --bad: #e05a5a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--navy);
+  color: var(--text);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.topbar {
+  background: linear-gradient(180deg, var(--navy-2), var(--navy));
+  border-bottom: 2px solid var(--gold-strong);
+  padding: 18px 16px;
+}
+
+.topbar-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand-name {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--text);
+}
+
+.brand-tag {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  margin-top: 2px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: background 0.3s;
+}
+.dot.live { background: var(--good); box-shadow: 0 0 8px var(--good); }
+.dot.error { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
+
+.marquee {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 6px 0;
+}
+.marquee.bottom {
+  border-bottom: none;
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+}
+.marquee-track {
+  display: inline-block;
+  padding-left: 100%;
+  font-size: 12px;
+  color: var(--gold);
+  animation: scroll-left 22s linear infinite;
+}
+@keyframes scroll-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+.wrap {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+}
+
+.banner {
+  background: #3a2f11;
+  border: 1px solid #5a4a1a;
+  color: var(--gold);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.banner.hidden { display: none; }
+
+.ticker-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ticker-row.two-col {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 560px) {
+  .ticker-row { grid-template-columns: 1fr; }
+}
+
+.as-of {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+
+.ticker {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--gold-strong);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+
+.ticker-label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.ticker-value {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.ticker-range {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.rate-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.rate-table th {
+  background: var(--gold-strong);
+  color: #14140a;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.rate-table td {
+  background: var(--panel);
+  padding: 14px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.unit-tag {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.rate-table .dash {
+  color: var(--muted);
+  text-align: center;
+}
+
+.rate-table .sell {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.rate-table .sell.market {
+  color: var(--silver);
+}
+
+.check {
+  color: var(--good);
+  font-weight: 700;
+}
+
+footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--muted);
+}
