@@ -1,80 +1,78 @@
-// Calibrated against two independent dealers on the same platform (GSC Silver + Kalash
-// Gold, 2026-09-06), both anchored to IBJA Silver 999 and Gold 999 - see server.py / README
+// Calibrated directly against live international spot: GSC Silver and Kalash Gold both
+// displayed an identical SPOT($) ticker (gold 4431.00, silver 66.22, USD/INR 94.50) at the
+// same moment as their RTGS/Market sell rates (2026-09-06) - synchronized baseline, no
+// intermediate reference needed. Values are the average of both dealers - see server.py
 // for the full derivation. Keep these in sync with server.py if you tune them.
-const RTGS_SILVER_PCT = 2.48;
-const MARKET_SILVER_PCT = -1.68;
-const RTGS_GOLD_PCT = 1.9;
-const MARKET_GOLD_PCT = -3.96;
+const RTGS_SILVER_PCT = 19.97;
+const MARKET_SILVER_PCT = 15.28;
+const RTGS_GOLD_PCT = 17.26;
+const MARKET_GOLD_PCT = 10.49;
 
-function unescapeHtml(s) {
-  return s
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
-}
+const TROY_OZ_IN_GRAMS = 31.1034768;
+const YAHOO_SPARK_URL = "https://query1.finance.yahoo.com/v7/finance/spark";
+const YAHOO_SYMBOLS = "GC=F,SI=F,INR=X"; // gold futures, silver futures, USD/INR
 
-function extractHiddenJson(text, fieldId) {
-  const re = new RegExp(`id="${fieldId}"\\s+value="([^"]*)"`);
-  const m = text.match(re);
-  if (!m) throw new Error(`IBJA page layout changed: ${fieldId} not found`);
-  return JSON.parse(unescapeHtml(m[1]));
-}
+async function fetchYahoo() {
+  const url = `${YAHOO_SPARK_URL}?symbols=${encodeURIComponent(YAHOO_SYMBOLS)}&range=1d&interval=5m`;
+  const resp = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+  if (!resp.ok) throw new Error(`Yahoo Finance responded ${resp.status}`);
+  const payload = await resp.json();
+  const results = payload && payload.spark && payload.spark.result;
+  if (!results || !results.length) throw new Error("Yahoo Finance returned no data");
 
-async function fetchIbja() {
-  const resp = await fetch("https://www.ibjarates.com/", {
-    headers: { "User-Agent": "Mozilla/5.0" },
-  });
-  if (!resp.ok) throw new Error(`IBJA responded ${resp.status}`);
-  const text = await resp.text();
-
-  const gold = extractHiddenJson(text, "HdnGold");
-  const silver = extractHiddenJson(text, "HdnSilver");
-
-  if (!gold.labels || !gold.labels.length || !silver.silverRate || !silver.silverRate.length) {
-    throw new Error("IBJA published no rate history");
+  const bySymbol = {};
+  for (const r of results) {
+    const meta = r.response[0].meta;
+    const price = meta.regularMarketPrice;
+    bySymbol[r.symbol] = {
+      price,
+      low: meta.regularMarketDayLow != null ? meta.regularMarketDayLow : price,
+      high: meta.regularMarketDayHigh != null ? meta.regularMarketDayHigh : price,
+    };
   }
 
-  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const dateStr = gold.labels[gold.labels.length - 1]; // DD/MM/YYYY
-  const [dd, mm, yyyy] = dateStr.split("/");
-  const asOf = `${dd.padStart(2, "0")} ${MONTHS[+mm - 1]} ${yyyy}`;
-
-  return {
-    as_of: asOf,
-    gold_999_per_10g: gold.purity999[gold.purity999.length - 1],
-    silver_999_per_kg: silver.silverRate[silver.silverRate.length - 1],
-  };
+  for (const sym of ["GC=F", "SI=F", "INR=X"]) {
+    if (!bySymbol[sym]) throw new Error(`Yahoo Finance response missing ${sym}`);
+  }
+  return bySymbol;
 }
 
 exports.handler = async function () {
   try {
-    const raw = await fetchIbja();
-    const goldBase = raw.gold_999_per_10g;
-    const silverBase = raw.silver_999_per_kg;
+    const raw = await fetchYahoo();
+    const gold = raw["GC=F"];
+    const silver = raw["SI=F"];
+    const fx = raw["INR=X"];
+    const inr = fx.price;
+
+    const silverSpotPerKg = ((silver.price / TROY_OZ_IN_GRAMS) * 1000) * inr;
+    const goldSpotPer10g = ((gold.price / TROY_OZ_IN_GRAMS) * 10) * inr;
+
+    const round = (n) => Math.round(n);
+    const round2 = (n) => Math.round(n * 100) / 100;
+    const round4 = (n) => Math.round(n * 10000) / 10000;
 
     const body = {
-      as_of: raw.as_of,
       fetched_at: Math.floor(Date.now() / 1000),
+      usd_inr: round4(inr),
+      fx_range: [round4(fx.low), round4(fx.high)],
       gold: {
-        ibja_per_10g: goldBase,
-        rtgs_per_10g: Math.round(goldBase * (1 + RTGS_GOLD_PCT / 100)),
-        market_per_10g: Math.round(goldBase * (1 + MARKET_GOLD_PCT / 100)),
+        usd_oz: round2(gold.price),
+        usd_range: [round2(gold.low), round2(gold.high)],
+        rtgs_per_10g: round(goldSpotPer10g * (1 + RTGS_GOLD_PCT / 100)),
+        market_per_10g: round(goldSpotPer10g * (1 + MARKET_GOLD_PCT / 100)),
       },
       silver: {
-        ibja_per_kg: silverBase,
-        rtgs_per_kg: Math.round(silverBase * (1 + RTGS_SILVER_PCT / 100)),
-        market_per_kg: Math.round(silverBase * (1 + MARKET_SILVER_PCT / 100)),
+        usd_oz: round2(silver.price),
+        usd_range: [round2(silver.low), round2(silver.high)],
+        rtgs_per_kg: round(silverSpotPerKg * (1 + RTGS_SILVER_PCT / 100)),
+        market_per_kg: round(silverSpotPerKg * (1 + MARKET_SILVER_PCT / 100)),
       },
     };
 
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=120",
-      },
+      headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=5" },
       body: JSON.stringify(body),
     };
   } catch (err) {

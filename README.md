@@ -1,8 +1,10 @@
 # Shree Aasha Silver Live Rates
 
-A local web app showing silver and gold rates styled after Indian bullion-dealer apps (GSC
-Silver, Ambica Spot, Kalash Gold): an IBJA reference ticker plus RTGS/Market rate columns —
-installable on your phone as a home-screen app (PWA).
+A local/hosted web app showing silver and gold rates styled after Indian bullion-dealer apps
+(GSC Silver, Ambica Spot, Kalash Gold): a live SPOT ticker plus RTGS/Market rate columns —
+installable on your phone as a home-screen app (PWA). Deployed on both
+[Render](https://shreeaasha-silver-rates.onrender.com) and
+[Netlify](https://shreeaasha-silver-rates.netlify.app).
 
 ## Setup
 
@@ -16,57 +18,64 @@ installable on your phone as a home-screen app (PWA).
    ```
 3. Open http://127.0.0.1:5050 on this PC.
 
-## Data source: IBJA (no API key, no quota, no private scraping)
+## Data source: live international spot (no API key, no publish-schedule gaps)
 
-Earlier versions guessed India retail prices from international COMEX futures + an assumed
-import-duty/GST markup. That was only ever an approximation. This version instead reads the
-**India Bullion & Jewellers Association (IBJA)** daily published rate — the actual official
-industry benchmark for Indian gold/silver prices (the same reference dealers themselves use),
-publicly available at [ibjarates.com](https://www.ibjarates.com/), not gated behind any login.
+An earlier version anchored to IBJA (India Bullion & Jewellers Association)'s official daily
+rate. That's accurate, but IBJA only publishes once or twice a day on business days - so the
+app could sit showing yesterday's (or Friday's) number for a long stretch, which felt broken
+even though it was technically correct.
 
-IBJA publishes once or twice a day on business days (no weekend/holiday updates — that's the
-real market convention, not a limitation of this app), so the server re-fetches it every
-`REFRESH_SECONDS` (default 5 min — no point checking more often than the source changes) and
-carries forward the last published value until a new one appears.
+This version instead reads **live COMEX gold/silver futures + USD/INR** directly from Yahoo
+Finance's public market-data endpoint (no key, no signup, no quota, updates continuously)
+and applies the **full India retail markup directly against pure spot** - calibrated straight
+from real dealer data (see below), no intermediate reference needed.
 
-**Why not scrape GSC Silver's own live number directly?** Their live rates come through a
-private streaming/trading backend (`bcast.gscsilver.com`, `adminapi.gscsilver.com`, custom
-ports) — licensed B2B infrastructure for their bullion-trading platform (note the Login/
-Booking Desk/Trades/Pending Orders on their site — it's a dealer trading system, not a public
-feed). Continuously polling that isn't appropriate. IBJA is the legitimate public alternative.
+**Why not pull from GSC Silver / Kalash Gold's own backend directly?** Their live rates come
+through private streaming/trading infrastructure (`bcast.gscsilver.com`, `adminapi.gscsilver.com`,
+Chirayusoft's dealer backend) - licensed B2B systems for paid bullion-trading platforms (note
+the Login/Booking Desk/Trades/Pending Orders - these are dealer trading systems, not public
+feeds). This app doesn't access that; everything here is computed independently from data
+those apps already displayed publicly (their own on-screen SPOT ticker + RTGS/Market rates).
 
 ## RTGS / Market columns
 
 Bullion trade uses two conventional rate types:
-- **RTGS Rate** — for bank-transfer settlement (a small premium over the base reference)
-- **Market Rate** — the cash/counter rate (typically at a discount to RTGS)
+- **RTGS Rate** — for bank-transfer settlement (a premium over spot)
+- **Market Rate** — the cash/counter rate (a smaller premium over spot)
 
-Both are computed as `IBJA rate × (1 + spread%)`, with spread constants in `.env`, cross-checked
-against **two independent dealers on the same underlying platform** (GSC Silver and Kalash
-Gold, both Mysuru-based, both showing identical SPOT($) numbers — confirming a shared upstream
-feed with each dealer setting their own margin on top):
+Both are computed as `spot × (1 + markup%)`, calibrated from a single synchronized moment:
+GSC Silver and Kalash Gold both displayed an **identical** SPOT($) ticker (gold 4431.00,
+silver 66.22, USD/INR 94.50) at the same time as their RTGS/Market sell rates on 2026-09-06 -
+so the spot baseline and the dealer numbers are from the exact same instant, no timing
+mismatch. Constants in `.env` (average of both dealers where both had data):
 
 | Constant | Default | GSC Silver | Kalash Gold |
 |---|---|---|---|
-| `RTGS_SILVER_PCT` | 2.48 | +2.48% (241301) | +2.55% (241450) |
-| `MARKET_SILVER_PCT` | -1.68 | -1.68% (231500) | -1.32% (232350) |
-| `RTGS_GOLD_PCT` | 1.90 | +1.90% (157819) | +1.96% (157913) |
-| `MARKET_GOLD_PCT` | -3.96 | *(no figure given)* | -3.93% to -3.99% (148700/148800) |
+| `RTGS_SILVER_PCT` | 19.97 | +19.94% | +20.01% |
+| `MARKET_SILVER_PCT` | 15.28 | +15.06% | +15.49% |
+| `RTGS_GOLD_PCT` | 17.26 | +17.23% | +17.30% |
+| `MARKET_GOLD_PCT` | 10.49 | *(no figure given)* | +10.49% (only data point) |
 
-The two dealers agree within a few tenths of a percent on RTGS/Market-silver/RTGS-gold —
-that consistency is what makes these defaults trustworthy. Gold's Market rate only has one
-real data point (Kalash) since GSC never published one; expect it to need retuning more than
-the others. If your dealer's actual rates drift from these over time, just edit the
-percentages in `.env` and restart — no code changes needed.
+If your dealer's actual rates drift from these over time, edit the percentages in `.env`
+(or the constants at the top of `server.py` / `netlify/functions/rates.js` for the hosted
+deployments) and redeploy - no other code changes needed.
+
+## Two deployments, two codebases
+
+Render runs the Python backend (`server.py`) as-is. Netlify can't run a persistent Python
+server on its free tier, so `netlify/functions/rates.js` is a JavaScript reimplementation of
+the same fetch + markup logic. **They must be kept in sync manually** - if you change the
+markup constants, update both files.
 
 ## Using it on your phone
 
-The server binds to your PC's network, so a phone on the **same Wi-Fi** can reach it:
+Two public links work from anywhere, no Wi-Fi requirement, even with your PC off:
+- https://shreeaasha-silver-rates.onrender.com
+- https://shreeaasha-silver-rates.netlify.app
 
-1. On your phone's browser, go to `http://<this-PC's-LAN-IP>:5050` — e.g. `http://192.168.1.5:5050`
-   (find your PC's IP with `ipconfig`; it can change if your router reassigns it).
-2. If it doesn't load, Windows Firewall may be blocking inbound connections to port 5050 —
-   allow it yourself: **Windows Security → Firewall & network protection → Allow an app
-   through firewall**, and allow Python (or the prompt Windows shows on first run).
-3. Use your browser's **"Add to Home Screen"** (Safari) or **"Install app"** (Chrome) — it'll
-   appear as its own icon, "Shree Aasha", and open full-screen like a native app.
+Open either on your phone and use **"Add to Home Screen"** (Safari) or **"Install app"**
+(Chrome) - it appears as its own icon, "Shree Aasha", and opens full-screen like a native app.
+
+For local-network-only access (this PC's LAN IP, e.g. `http://192.168.1.5:5050`), Windows
+Firewall may need to allow Python through: **Windows Security → Firewall & network
+protection → Allow an app through firewall**.

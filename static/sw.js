@@ -1,4 +1,4 @@
-const CACHE = "shree-aasha-v6";
+const CACHE = "shree-aasha-v7";
 const SHELL = ["/", "/style.css", "/app.js", "/manifest.json"];
 
 self.addEventListener("install", (event) => {

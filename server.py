@@ -1,10 +1,6 @@
-import html
-import json
 import os
-import re
 import threading
 import time
-from datetime import datetime
 
 from flask import Flask, jsonify, send_from_directory
 import requests
@@ -12,23 +8,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-REFRESH_SECONDS = int(os.getenv("REFRESH_SECONDS", "300"))
+REFRESH_SECONDS = int(os.getenv("REFRESH_SECONDS", "8"))
+TROY_OZ_IN_GRAMS = 31.1034768
 
-# Calibrated against two independent dealers on the same platform (GSC Silver + Kalash
-# Gold, 2026-09-06), both anchored to IBJA Silver 999 (235456/kg) and Gold 999 (154884/10g):
-#   Silver RTGS:  GSC 241301 (+2.48%)   | Kalash 241450 (+2.55%)
-#   Silver Market: GSC 231500 (-1.68%)  | Kalash 232350 (-1.32%)
-#   Gold RTGS:    GSC 157819 (+1.90%)   | Kalash 157913 (+1.96%)
-#   Gold Market:  Kalash 148700-148800 (-3.93% to -3.99%) - GSC gave no figure
-# GSC's numbers are used where available (it's the primary reference app); Gold Market
-# has no GSC figure so it uses Kalash's. Expect dealer-to-dealer variation of a few
-# tenths of a percent - retune in .env if you're matching a specific dealer exactly.
-RTGS_SILVER_PCT = float(os.getenv("RTGS_SILVER_PCT", "2.48"))
-MARKET_SILVER_PCT = float(os.getenv("MARKET_SILVER_PCT", "-1.68"))
-RTGS_GOLD_PCT = float(os.getenv("RTGS_GOLD_PCT", "1.90"))
-MARKET_GOLD_PCT = float(os.getenv("MARKET_GOLD_PCT", "-3.96"))
+# Calibrated directly against live international spot: GSC Silver and Kalash Gold both
+# displayed an identical SPOT($) ticker (gold 4431.00, silver 66.22, USD/INR 94.50) at the
+# same moment as their RTGS/Market sell rates (2026-09-06), giving a synchronized baseline
+# with no intermediate reference needed. Values below are the average of both dealers:
+#   Silver RTGS:  GSC +19.94%  | Kalash +20.01%
+#   Silver Market: GSC +15.06% | Kalash +15.49%
+#   Gold RTGS:    GSC +17.23%  | Kalash +17.30%
+#   Gold Market:  Kalash +10.49% (only data point available)
+RTGS_SILVER_PCT = float(os.getenv("RTGS_SILVER_PCT", "19.97"))
+MARKET_SILVER_PCT = float(os.getenv("MARKET_SILVER_PCT", "15.28"))
+RTGS_GOLD_PCT = float(os.getenv("RTGS_GOLD_PCT", "17.26"))
+MARKET_GOLD_PCT = float(os.getenv("MARKET_GOLD_PCT", "10.49"))
 
-IBJA_URL = "https://www.ibjarates.com/"
+YAHOO_SPARK_URL = "https://query1.finance.yahoo.com/v7/finance/spark"
+YAHOO_SYMBOLS = "GC=F,SI=F,INR=X"  # gold futures, silver futures, USD/INR
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 
@@ -36,51 +33,56 @@ _cache_lock = threading.Lock()
 _cache = {"data": None, "fetched_at": 0, "error": None}
 
 
-def _extract_hidden_json(page_text, field_id):
-    m = re.search(rf'id="{field_id}"\s+value="([^"]*)"', page_text)
-    if not m:
-        raise RuntimeError(f"IBJA page layout changed: {field_id} not found")
-    return json.loads(html.unescape(m.group(1)))
+def fetch_yahoo():
+    params = {"symbols": YAHOO_SYMBOLS, "range": "1d", "interval": "5m"}
+    resp = requests.get(
+        YAHOO_SPARK_URL, params=params, headers={"User-Agent": "Mozilla/5.0"}, timeout=8
+    )
+    payload = resp.json()
+    results = payload.get("spark", {}).get("result")
+    if not results:
+        raise RuntimeError("Yahoo Finance returned no data")
 
+    by_symbol = {}
+    for r in results:
+        meta = r["response"][0]["meta"]
+        price = meta["regularMarketPrice"]
+        by_symbol[r["symbol"]] = {
+            "price": price,
+            "low": meta.get("regularMarketDayLow", price),
+            "high": meta.get("regularMarketDayHigh", price),
+        }
 
-def fetch_ibja():
-    resp = requests.get(IBJA_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
-    resp.raise_for_status()
-    text = resp.text
+    for sym in ("GC=F", "SI=F", "INR=X"):
+        if sym not in by_symbol:
+            raise RuntimeError(f"Yahoo Finance response missing {sym}")
 
-    gold = _extract_hidden_json(text, "HdnGold")
-    silver = _extract_hidden_json(text, "HdnSilver")
-
-    if not gold.get("labels") or not silver.get("labels"):
-        raise RuntimeError("IBJA published no rate history")
-
-    date_str = gold["labels"][-1]  # DD/MM/YYYY
-    as_of = datetime.strptime(date_str, "%d/%m/%Y").strftime("%d %b %Y")
-
-    return {
-        "as_of": as_of,
-        "gold_999_per_10g": gold["purity999"][-1],
-        "silver_999_per_kg": silver["silverRate"][-1],
-    }
+    return by_symbol
 
 
 def build_snapshot():
-    raw = fetch_ibja()
-    gold_base = raw["gold_999_per_10g"]
-    silver_base = raw["silver_999_per_kg"]
+    raw = fetch_yahoo()
+    gold, silver, fx = raw["GC=F"], raw["SI=F"], raw["INR=X"]
+    inr = fx["price"]
+
+    silver_spot_per_kg = silver["price"] / TROY_OZ_IN_GRAMS * 1000 * inr
+    gold_spot_per_10g = gold["price"] / TROY_OZ_IN_GRAMS * 10 * inr
 
     return {
-        "as_of": raw["as_of"],
         "fetched_at": int(time.time()),
+        "usd_inr": round(inr, 4),
+        "fx_range": [round(fx["low"], 4), round(fx["high"], 4)],
         "gold": {
-            "ibja_per_10g": gold_base,
-            "rtgs_per_10g": round(gold_base * (1 + RTGS_GOLD_PCT / 100)),
-            "market_per_10g": round(gold_base * (1 + MARKET_GOLD_PCT / 100)),
+            "usd_oz": round(gold["price"], 2),
+            "usd_range": [round(gold["low"], 2), round(gold["high"], 2)],
+            "rtgs_per_10g": round(gold_spot_per_10g * (1 + RTGS_GOLD_PCT / 100)),
+            "market_per_10g": round(gold_spot_per_10g * (1 + MARKET_GOLD_PCT / 100)),
         },
         "silver": {
-            "ibja_per_kg": silver_base,
-            "rtgs_per_kg": round(silver_base * (1 + RTGS_SILVER_PCT / 100)),
-            "market_per_kg": round(silver_base * (1 + MARKET_SILVER_PCT / 100)),
+            "usd_oz": round(silver["price"], 2),
+            "usd_range": [round(silver["low"], 2), round(silver["high"], 2)],
+            "rtgs_per_kg": round(silver_spot_per_kg * (1 + RTGS_SILVER_PCT / 100)),
+            "market_per_kg": round(silver_spot_per_kg * (1 + MARKET_SILVER_PCT / 100)),
         },
     }
 
@@ -119,10 +121,6 @@ def index():
 
 
 if __name__ == "__main__":
-    # Debug off by default: Flask's debugger lets anyone who can reach this server run
-    # arbitrary code from an error page - fine on localhost-only, not fine once a friend
-    # (or the internet, via a tunnel) can reach it. Set FLASK_DEBUG=true in .env for local
-    # development only.
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
     # 0.0.0.0 so phones on the same Wi-Fi/LAN can reach it via this PC's local IP
     app.run(host="0.0.0.0", port=5050, debug=debug, use_reloader=False)

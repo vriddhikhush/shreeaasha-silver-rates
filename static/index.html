@@ -35,17 +35,23 @@
 <div class="wrap">
   <div id="banner" class="banner hidden"></div>
 
-  <div class="ticker-row two-col">
+  <div class="ticker-row">
     <section class="ticker">
-      <span class="ticker-label">IBJA GOLD 999 (per 10g)</span>
-      <span class="ticker-value" id="ibjaGold">--</span>
+      <span class="ticker-label">SPOT GOLD (USD/oz)</span>
+      <span class="ticker-value" id="spotGold">--</span>
+      <span class="ticker-range" id="rangeGold">-- | --</span>
     </section>
     <section class="ticker">
-      <span class="ticker-label">IBJA SILVER 999 (per kg)</span>
-      <span class="ticker-value" id="ibjaSilver">--</span>
+      <span class="ticker-label">SPOT SILVER (USD/oz)</span>
+      <span class="ticker-value" id="spotSilver">--</span>
+      <span class="ticker-range" id="rangeSilver">-- | --</span>
+    </section>
+    <section class="ticker">
+      <span class="ticker-label">USD/INR</span>
+      <span class="ticker-value" id="spotFx">--</span>
+      <span class="ticker-range" id="rangeFx">-- | --</span>
     </section>
   </div>
-  <div class="as-of" id="asOf">IBJA reference as of --</div>
 
   <table class="rate-table">
     <thead>
@@ -73,7 +79,7 @@
 </div>
 
 <div class="marquee bottom">
-  <div class="marquee-track">Reference rate from IBJA (India Bullion &amp; Jewellers Association). RTGS/Market columns apply a calibrated dealer spread on top — for reference only, not an official dealer quote.</div>
+  <div class="marquee-track">Live international spot (COMEX gold/silver futures + USD/INR), converted with a calibrated dealer markup — for reference only, not an official dealer quote.</div>
 </div>
 
 <script src="app.js"></script>
