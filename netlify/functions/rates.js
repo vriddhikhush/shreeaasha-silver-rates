@@ -36,14 +36,10 @@ async function fetchIbja() {
     throw new Error("IBJA published no rate history");
   }
 
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const dateStr = gold.labels[gold.labels.length - 1]; // DD/MM/YYYY
   const [dd, mm, yyyy] = dateStr.split("/");
-  const asOf = new Date(Date.UTC(+yyyy, +mm - 1, +dd)).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  const asOf = `${dd.padStart(2, "0")} ${MONTHS[+mm - 1]} ${yyyy}`;
 
   return {
     as_of: asOf,
