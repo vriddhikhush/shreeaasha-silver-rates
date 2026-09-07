@@ -26,9 +26,17 @@ app could sit showing yesterday's (or Friday's) number for a long stretch, which
 even though it was technically correct.
 
 This version instead reads **live COMEX gold/silver futures + USD/INR** directly from Yahoo
-Finance's public market-data endpoint (no key, no signup, no quota, updates continuously)
-and applies the **full India retail markup directly against pure spot** - calibrated straight
-from real dealer data (see below), no intermediate reference needed.
+Finance's public market-data endpoint (no key, no signup, no quota) and applies the **full
+India retail markup directly against pure spot** - calibrated straight from real dealer data
+(see below), no intermediate reference needed.
+
+**On "live"**: this endpoint is free and unauthenticated, so it isn't tick-by-tick real-time -
+checking Yahoo's own trade timestamps directly showed gold/silver refreshing roughly every
+5-10 minutes and USD/INR sometimes 30-45 minutes. True sub-minute real-time market data is a
+paid, licensed feed; nobody gives that away for free. The app polls every 30s, which is
+frequent enough to pick up Yahoo's own updates promptly without wasting requests - polling
+faster wouldn't get fresher data, since there's nothing new to fetch until Yahoo's side
+changes. Numbers holding steady for several minutes at a stretch is expected, not broken.
 
 **Why not pull from GSC Silver / Kalash Gold's own backend directly?** Their live rates come
 through private streaming/trading infrastructure (`bcast.gscsilver.com`, `adminapi.gscsilver.com`,

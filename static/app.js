@@ -1,4 +1,4 @@
-const POLL_MS = 4000;
+const POLL_MS = 30000;
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

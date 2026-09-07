@@ -72,7 +72,7 @@ exports.handler = async function () {
 
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=5" },
+      headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=30" },
       body: JSON.stringify(body),
     };
   } catch (err) {

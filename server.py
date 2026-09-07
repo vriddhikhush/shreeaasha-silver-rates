@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-REFRESH_SECONDS = int(os.getenv("REFRESH_SECONDS", "8"))
+REFRESH_SECONDS = int(os.getenv("REFRESH_SECONDS", "30"))
 TROY_OZ_IN_GRAMS = 31.1034768
 
 # Calibrated directly against live international spot: GSC Silver and Kalash Gold both
